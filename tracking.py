@@ -103,9 +103,7 @@ with open("coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 
 # Start video capture
-cap = cv2.VideoCapture(
-    "rtsp://admin:panamet0@192.168.0.208:554/cam/realmonitor?channel=1&subtype=1&unicast=true&proto=Onvif")  # el subtype=0 es para la camara principal 1 para la secundaria
-# cap = cv2.VideoCapture("oficina.mp4")
+cap = cv2.VideoCapture("resized_video.mp4")
 
 # Print frame shape and frame rate
 if cap.isOpened():
@@ -124,8 +122,8 @@ ct = CentroidTracker(maxDisappeared=40)
 (H, W) = (None, None)
 
 # Define entry and exit zones
-entry_line = 200  # Blue line
-exit_line = 300  # Red line
+entry_line = 100  # Blue line
+exit_line = 150  # Red line
 
 # Define the no-zone mask as a polygon
 no_zone = np.array([[220, 480], [580, 0], [704, 0], [704, 480], [220, 480]])
@@ -168,6 +166,10 @@ def continue_recording(duration):
 # Flag to avoid saving multiple events simultaneously
 is_saving_event = False
 current_event = None
+
+# Variables to calculate FPS
+fps_counter = 0
+fps_start_time = time.time()
 
 # Start processing the video
 while cap.isOpened():
@@ -260,6 +262,15 @@ while cap.isOpened():
 
     # Combine the frame and the mask using the alpha mask
     frame = cv2.addWeighted(frame, 1, mask, 0.8, 0, frame)
+
+    # Calculate and display FPS
+    fps_counter += 1
+    fps_elapsed_time = time.time() - fps_start_time
+    if fps_elapsed_time > 1:
+        fps = fps_counter / fps_elapsed_time
+        fps_counter = 0
+        fps_start_time = time.time()
+        # print(f"FPS: {fps:.2f}")
 
     cv2.imshow("Frame", frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
