@@ -44,6 +44,11 @@ def start_new_video_writer():
 out = start_new_video_writer()
 start_time = datetime.now()
 
+# Read the first frame to print its shape
+ret, frame = cap.read()
+if ret:
+    print("Shape of the first frame:", frame.shape)
+
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
