@@ -10,13 +10,14 @@ print("OpenCV version:", cv2.__version__)
 
 
 class CentroidTracker:
-    def __init__(self, maxDisappeared=50):
+    def __init__(self, maxDisappeared=50, crossLineBuffer=5):
         self.nextObjectID = 0
         self.objects = OrderedDict()
         self.disappeared = OrderedDict()
         self.maxDisappeared = maxDisappeared
         self.objectDirections = {}
         self.previousCentroids = {}
+        self.crossLineBuffer = crossLineBuffer
 
     def register(self, centroid):
         self.objects[self.nextObjectID] = centroid
@@ -71,9 +72,9 @@ class CentroidTracker:
                 currentCentroid = inputCentroids[col]
                 self.previousCentroids[objectID] = currentCentroid
 
-                if previousCentroid[1] >= exit_line and currentCentroid[1] < exit_line:
+                if previousCentroid[1] >= single_line + self.crossLineBuffer and currentCentroid[1] < single_line - self.crossLineBuffer:
                     self.objectDirections[objectID] = "Sale"
-                elif previousCentroid[1] <= entry_line and currentCentroid[1] > entry_line:
+                elif previousCentroid[1] <= single_line - self.crossLineBuffer and currentCentroid[1] > single_line + self.crossLineBuffer:
                     self.objectDirections[objectID] = "Entra"
 
                 usedRows.add(row)
@@ -121,9 +122,8 @@ if cap.isOpened():
 ct = CentroidTracker(maxDisappeared=40)
 (H, W) = (None, None)
 
-# Define entry and exit zones
-entry_line = 100  # Blue line
-exit_line = 150  # Red line
+# Define the single line
+single_line = 125  # Line to track direction crossing
 
 # Define the no-zone mask as a polygon
 no_zone = np.array([[220, 480], [580, 0], [704, 0], [704, 480], [220, 480]])
@@ -246,11 +246,9 @@ while cap.isOpened():
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255) if direction == "Sale" else (255, 0, 0), 2)
             print(f"ID {objectID} {direction}")
 
-    # Draw the lines on the frame
-    cv2.line(frame, (0, exit_line), (W, exit_line),
-             (0, 0, 255), 2)  # Red line for exit
-    cv2.line(frame, (0, entry_line), (W, entry_line),
-             (0, 255, 0), 2)  # Green line for entry
+    # Draw the single line on the frame
+    cv2.line(frame, (0, single_line), (W, single_line),
+             (255, 255, 255), 2)  # White line
 
     # Create a mask for the no-zone
     mask = np.zeros((H, W, 3), dtype=np.uint8)

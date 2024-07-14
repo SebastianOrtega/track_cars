@@ -54,6 +54,6 @@ def resize_video(input_file, output_file, new_width, new_height, target_fps):
 
 
 # Example usage
-input_video = "para_pruebas.mp4"
+input_video = "prueba_2.mp4"
 output_video = "resized_video.mp4"
 resize_video(input_video, output_video, 704, 408, 10)

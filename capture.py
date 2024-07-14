@@ -13,6 +13,7 @@ with open("coco.names", "r") as f:
 # Start video capture
 cap = cv2.VideoCapture(
     "rtsp://admin:panamet0@192.168.0.208:554/cam/realmonitor?channel=1&subtype=1&unicast=true&proto=Onvif")
+# "rtsp://admin:panamet0@192.168.0.186:554/cam/realmonitor?channel=1&subtype=1&unicast=true&proto=Onvif")   //camara doble
 
 # Check if the video capture is opened
 if not cap.isOpened():
