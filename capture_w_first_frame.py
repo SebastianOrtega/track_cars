@@ -11,8 +11,7 @@ with open("coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 
 # Start video capture
-cap = cv2.VideoCapture(
-    "rtsp://admin:panamet0@192.168.0.84:554/Streaming/Channels/102")
+cap = cv2.VideoCapture("rtsp://admin:panamet0@192.168.0.84:554/Streaming/Channels/102")
 
 # Check if the video capture is opened
 if not cap.isOpened():
@@ -32,22 +31,21 @@ fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # For MP4 format
 segment_duration = 60 * 60  # 1 hour in seconds
 
 # Function to start a new video writer
-
-
 def start_new_video_writer():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f'./recordings/recording_{timestamp}.mp4'
     return cv2.VideoWriter(filename, fourcc, fps, (width, height))
 
-
 # Start the first video writer
 out = start_new_video_writer()
 start_time = datetime.now()
 
-# Read the first frame to print its shape
+# Read the first frame to print its shape and save it as PNG
 ret, frame = cap.read()
 if ret:
     print("Shape of the first frame:", frame.shape)
+    # Save the first frame as a PNG image
+    cv2.imwrite('./recordings/first_frame.png', frame)
 
 while cap.isOpened():
     ret, frame = cap.read()
