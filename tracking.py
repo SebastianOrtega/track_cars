@@ -104,7 +104,7 @@ with open("coco.names", "r") as f:
 
 # Start video capture
 cap = cv2.VideoCapture(
-    "rtsp://admin:panamet0@192.168.0.83:554/h265/ch1/main/av_stream")  # el subtype=0 es para la camara principal 1 para la secundaria
+    "rtsp://admin:panamet0@192.168.0.84:554/Streaming/Channels/102q")  # el subtype=0 es para la camara principal 1 para la secundaria
 # cap = cv2.VideoCapture("oficina.mp4")
 
 # Print frame shape and frame rate
