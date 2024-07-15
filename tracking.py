@@ -10,19 +10,22 @@ print("OpenCV version:", cv2.__version__)
 
 
 class CentroidTracker:
-    def __init__(self, maxDisappeared=10):
+    def __init__(self, maxDisappeared=1):
         self.nextObjectID = 0
         self.objects = OrderedDict()
         self.disappeared = OrderedDict()
         self.maxDisappeared = maxDisappeared
         self.objectDirections = {}
         self.previousCentroids = {}
+        self.directionDisplayCounter = {}
+        self.printedDirections = set()
 
     def register(self, centroid):
         self.objects[self.nextObjectID] = centroid
         self.disappeared[self.nextObjectID] = 0
         self.objectDirections[self.nextObjectID] = None
         self.previousCentroids[self.nextObjectID] = centroid
+        self.directionDisplayCounter[self.nextObjectID] = 0
         self.nextObjectID += 1
 
     def deregister(self, objectID):
@@ -30,6 +33,9 @@ class CentroidTracker:
         del self.disappeared[objectID]
         del self.objectDirections[objectID]
         del self.previousCentroids[objectID]
+        del self.directionDisplayCounter[objectID]
+        if objectID in self.printedDirections:
+            self.printedDirections.remove(objectID)
 
     def update(self, rects):
         if len(rects) == 0:
@@ -37,7 +43,7 @@ class CentroidTracker:
                 self.disappeared[objectID] += 1
                 if self.disappeared[objectID] > self.maxDisappeared:
                     self.deregister(objectID)
-            return self.objects, self.objectDirections
+            return self.objects, self.objectDirections, self.directionDisplayCounter
 
         inputCentroids = np.zeros((len(rects), 2), dtype="int")
         for (i, (startX, startY, endX, endY)) in enumerate(rects):
@@ -73,8 +79,20 @@ class CentroidTracker:
 
                 if previousCentroid[1] >= exit_line and currentCentroid[1] < exit_line:
                     self.objectDirections[objectID] = "Sale"
+                    # Show direction for 30 frames
+                    self.directionDisplayCounter[objectID] = 30
+                    if objectID not in self.printedDirections:
+                        print(f"ID {objectID} Sale")
+                        self.printedDirections.add(objectID)
+                    # Deregister immediately after exiting
+                    self.deregister(objectID)
                 elif previousCentroid[1] <= entry_line and currentCentroid[1] > entry_line:
                     self.objectDirections[objectID] = "Entra"
+                    # Show direction for 30 frames
+                    self.directionDisplayCounter[objectID] = 30
+                    if objectID not in self.printedDirections:
+                        print(f"ID {objectID} Entra")
+                        self.printedDirections.add(objectID)
 
                 usedRows.add(row)
                 usedCols.add(col)
@@ -91,7 +109,7 @@ class CentroidTracker:
             for col in unusedCols:
                 self.register(inputCentroids[col])
 
-        return self.objects, self.objectDirections
+        return self.objects, self.objectDirections, self.directionDisplayCounter
 
 
 # Load YOLO
@@ -122,12 +140,12 @@ ct = CentroidTracker(maxDisappeared=40)
 (H, W) = (None, None)
 
 # Define entry and exit zones
-entry_line = int(90 / 4)  # Blue line
-exit_line = int(125 / 4)  # Red line
+entry_line = int(60 / 4)  # Blue line
+exit_line = int(70 / 4)  # Red line
 
 # Define the no-zone mask as a polygon
-no_zone = np.array([[int(50 / 4), int(358 / 4)], [int(282 / 4), int(201 / 4)], [int(377 / 4), int(96 / 4)], [
-                   int(403 / 4), 0], [int(640 / 4), 0], [int(640 / 4), int(360 / 4)], [int(50 / 4), int(358 / 4)]])
+no_zone = np.array([[int(0 / 4), int(174 / 4)], [int(203 / 4), int(275 / 4)], [int(398 / 4), int(37 / 4)],
+                   [int(365 / 4), int(22 / 4)], [int(239 / 4), int(14 / 4)], [int(0 / 4), int(72 / 4)], [int(0 / 4), int(174 / 4)]])
 
 # Initialize video recording parameters
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # For MP4 format
@@ -168,7 +186,6 @@ def continue_recording(duration):
 is_saving_event = False
 current_event = None
 save_event = False
-printed_directions = set()
 
 # Start processing the video
 while cap.isOpened():
@@ -210,8 +227,8 @@ while cap.isOpened():
                 y = int(center_y - h / 2)
 
                 # Check if the center is within the no-zone mask
-                if cv2.pointPolygonTest(no_zone, (center_x, center_y), False) >= 0:
-                    continue  # Ignore this detection if it is within the no-zone
+                if cv2.pointPolygonTest(no_zone, (center_x, center_y), False) < 0:
+                    continue  # Ignore this detection if it is outside the no-zone
 
                 boxes.append((x, y, x + w, y + h))
                 confidences.append(float(confidence))
@@ -225,7 +242,7 @@ while cap.isOpened():
     for i in indexes:
         rects.append(boxes[i])
 
-    objects, directions = ct.update(rects)
+    objects, directions, display_counters = ct.update(rects)
 
     for (objectID, centroid) in objects.items():
         text = f"ID {objectID}"
@@ -235,19 +252,10 @@ while cap.isOpened():
 
         # Display the direction and save video events
         direction = directions.get(objectID, None)
-        if direction in ["Sale", "Entra"] and not is_saving_event:
-            if direction != current_event:
-                current_event = direction
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                if (save_event):
-                    save_event(direction, frame_buffer, timestamp)
-                    is_saving_event = False
-
-            if objectID not in printed_directions:
-                cv2.putText(frame, f"ID {objectID} {direction}", (100, 50),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.25, (0, 0, 255) if direction == "Sale" else (255, 0, 0), 1)
-                print(f"ID {objectID} {direction}")
-                printed_directions.add(objectID)
+        if display_counters[objectID] > 0:
+            cv2.putText(frame, f"ID {objectID} {direction}", (90, 50),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255) if direction == "Sale" else (255, 0, 0), 1)
+            display_counters[objectID] -= 1
 
     # Draw the lines on the frame
     cv2.line(frame, (0, exit_line), (W, exit_line),
