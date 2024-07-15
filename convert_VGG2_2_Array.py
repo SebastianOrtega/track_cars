@@ -18,7 +18,7 @@ def get_polygon_mask(json_file, image_filename):
 
 
 # Example usage
-json_file = './mask1_vgg.json'
+json_file = './labels_my-project-name_2024-07-14-09-49-52.json'
 image_filename = 'first_frame.png'
 mask_array = get_polygon_mask(json_file, image_filename)
 print(mask_array)

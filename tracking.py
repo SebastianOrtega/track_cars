@@ -103,7 +103,7 @@ with open("coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 
 # Start video capture
-cap = cv2.VideoCapture("prueba.mp4")
+cap = cv2.VideoCapture("prueba2.mp4")
 
 # Print frame shape and frame rate
 if cap.isOpened():
@@ -168,6 +168,7 @@ def continue_recording(duration):
 is_saving_event = False
 current_event = None
 save_event = False
+printed_directions = set()
 
 # Start processing the video
 while cap.isOpened():
@@ -238,15 +239,15 @@ while cap.isOpened():
             if direction != current_event:
                 current_event = direction
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                # is_saving_event = True
-                # continue_recording(recording_duration)
                 if (save_event):
                     save_event(direction, frame_buffer, timestamp)
                     is_saving_event = False
 
-            cv2.putText(frame, f"ID {objectID} {direction}", (100, 50),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.25, (0, 0, 255) if direction == "Sale" else (255, 0, 0), 1)
-            print(f"ID {objectID} {direction}")
+            if objectID not in printed_directions:
+                cv2.putText(frame, f"ID {objectID} {direction}", (100, 50),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.25, (0, 0, 255) if direction == "Sale" else (255, 0, 0), 1)
+                print(f"ID {objectID} {direction}")
+                printed_directions.add(objectID)
 
     # Draw the lines on the frame
     cv2.line(frame, (0, exit_line), (W, exit_line),
