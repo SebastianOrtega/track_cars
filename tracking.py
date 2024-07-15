@@ -103,9 +103,8 @@ with open("coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 
 # Start video capture
-cap = cv2.VideoCapture(
-    "rtsp://admin:panamet0@192.168.0.84:554/Streaming/Channels/102q")  # el subtype=0 es para la camara principal 1 para la secundaria
-# cap = cv2.VideoCapture("oficina.mp4")
+# cap = cv2.VideoCapture("rtsp://admin:panamet0@192.168.0.84:554/Streaming/Channels/102q")  # el subtype=0 es para la camara principal 1 para la secundaria
+cap = cv2.VideoCapture("trimeado.mp4")
 
 # Print frame shape and frame rate
 if cap.isOpened():
@@ -124,11 +123,12 @@ ct = CentroidTracker(maxDisappeared=40)
 (H, W) = (None, None)
 
 # Define entry and exit zones
-entry_line = 200  # Blue line
-exit_line = 300  # Red line
+entry_line = 90  # Blue line
+exit_line = 125  # Red line
 
 # Define the no-zone mask as a polygon
-no_zone = np.array([[220, 480], [580, 0], [704, 0], [704, 480], [220, 480]])
+no_zone = np.array([[50, 358], [282, 201], [377, 96], [
+                   403, 0], [640, 0], [640, 360], [50, 358]])
 
 # Initialize video recording parameters
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # For MP4 format
@@ -168,6 +168,7 @@ def continue_recording(duration):
 # Flag to avoid saving multiple events simultaneously
 is_saving_event = False
 current_event = None
+save_event = False
 
 # Start processing the video
 while cap.isOpened():
@@ -235,10 +236,11 @@ while cap.isOpened():
             if direction != current_event:
                 current_event = direction
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                is_saving_event = True
-                continue_recording(recording_duration)
-                save_event(direction, frame_buffer, timestamp)
-                is_saving_event = False
+                # is_saving_event = True
+                # continue_recording(recording_duration)
+                if (save_event):
+                    save_event(direction, frame_buffer, timestamp)
+                    is_saving_event = False
 
             cv2.putText(frame, f"ID {objectID} {direction}", (50, 100),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255) if direction == "Sale" else (255, 0, 0), 2)
