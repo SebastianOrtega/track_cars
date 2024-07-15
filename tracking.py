@@ -10,6 +10,7 @@ print("OpenCV version:", cv2.__version__)
 
 
 class CentroidTracker:
+    # Este valor es el número de frames que un objeto puede desaparecer antes de ser eliminado
     def __init__(self, maxDisappeared=1):
         self.nextObjectID = 0
         self.objects = OrderedDict()
@@ -121,7 +122,9 @@ with open("coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 
 # Start video capture
-cap = cv2.VideoCapture("prueba2.mp4")
+cap = cv2.VideoCapture(
+    "rtsp://admin:panamet0@192.168.0.84:554/Streaming/Channels/102q")
+cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # Increase buffer size
 
 # Print frame shape and frame rate
 if cap.isOpened():
@@ -191,7 +194,12 @@ save_event = False
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
-        break
+        print("Failed to capture frame, retrying...")
+        cap.release()
+        cap = cv2.VideoCapture(
+            "rtsp://admin:panamet0@192.168.0.84:554/Streaming/Channels/102q")
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # Increase buffer size
+        continue
 
     # Resize frame to ¼ of the original resolution
     frame = cv2.resize(frame, (160, 90))
@@ -259,9 +267,9 @@ while cap.isOpened():
 
     # Draw the lines on the frame
     cv2.line(frame, (0, exit_line), (W, exit_line),
-             (0, 0, 255), 2)  # Red line for exit
+             (0, 0, 255), 1)  # Red line for exit
     cv2.line(frame, (0, entry_line), (W, entry_line),
-             (0, 255, 0), 2)  # Green line for entry
+             (0, 255, 0), 1)  # Green line for entry
 
     # Create a mask for the no-zone
     mask = np.zeros((H, W, 3), dtype=np.uint8)
