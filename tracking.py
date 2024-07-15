@@ -10,7 +10,7 @@ print("OpenCV version:", cv2.__version__)
 
 
 class CentroidTracker:
-    def __init__(self, maxDisappeared=50):
+    def __init__(self, maxDisappeared=10):
         self.nextObjectID = 0
         self.objects = OrderedDict()
         self.disappeared = OrderedDict()
@@ -103,7 +103,6 @@ with open("coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 
 # Start video capture
-# cap = cv2.VideoCapture("rtsp://admin:panamet0@192.168.0.84:554/Streaming/Channels/102q")  # el subtype=0 es para la camara principal 1 para la secundaria
 cap = cv2.VideoCapture("prueba.mp4")
 
 # Print frame shape and frame rate
@@ -123,12 +122,12 @@ ct = CentroidTracker(maxDisappeared=40)
 (H, W) = (None, None)
 
 # Define entry and exit zones
-entry_line = 90  # Blue line
-exit_line = 125  # Red line
+entry_line = int(90 / 4)  # Blue line
+exit_line = int(125 / 4)  # Red line
 
 # Define the no-zone mask as a polygon
-no_zone = np.array([[50, 358], [282, 201], [377, 96], [
-                   403, 0], [640, 0], [640, 360], [50, 358]])
+no_zone = np.array([[int(50 / 4), int(358 / 4)], [int(282 / 4), int(201 / 4)], [int(377 / 4), int(96 / 4)], [
+                   int(403 / 4), 0], [int(640 / 4), 0], [int(640 / 4), int(360 / 4)], [int(50 / 4), int(358 / 4)]])
 
 # Initialize video recording parameters
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # For MP4 format
@@ -175,6 +174,9 @@ while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
         break
+
+    # Resize frame to ¼ of the original resolution
+    frame = cv2.resize(frame, (160, 90))
 
     if W is None or H is None:
         (H, W) = frame.shape[:2]
@@ -226,9 +228,9 @@ while cap.isOpened():
 
     for (objectID, centroid) in objects.items():
         text = f"ID {objectID}"
-        cv2.putText(frame, text, (centroid[0] - 10, centroid[1] - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-        cv2.circle(frame, (centroid[0], centroid[1]), 4, (0, 255, 0), -1)
+        cv2.putText(frame, text, (centroid[0] + 10, centroid[1]),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.2, (0, 255, 0), 1)
+        cv2.circle(frame, (centroid[0], centroid[1]), 1, (0, 255, 0), -1)
 
         # Display the direction and save video events
         direction = directions.get(objectID, None)
@@ -242,8 +244,8 @@ while cap.isOpened():
                     save_event(direction, frame_buffer, timestamp)
                     is_saving_event = False
 
-            cv2.putText(frame, f"ID {objectID} {direction}", (50, 100),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255) if direction == "Sale" else (255, 0, 0), 2)
+            cv2.putText(frame, f"ID {objectID} {direction}", (100, 50),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.25, (0, 0, 255) if direction == "Sale" else (255, 0, 0), 1)
             print(f"ID {objectID} {direction}")
 
     # Draw the lines on the frame
