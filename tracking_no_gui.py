@@ -10,19 +10,22 @@ print("OpenCV version:", cv2.__version__)
 
 
 class CentroidTracker:
-    def __init__(self, maxDisappeared=50):
+    def __init__(self, maxDisappeared=1):
         self.nextObjectID = 0
         self.objects = OrderedDict()
         self.disappeared = OrderedDict()
         self.maxDisappeared = maxDisappeared
         self.objectDirections = {}
         self.previousCentroids = {}
+        self.directionDisplayCounter = {}
+        self.printedDirections = set()
 
     def register(self, centroid):
         self.objects[self.nextObjectID] = centroid
         self.disappeared[self.nextObjectID] = 0
         self.objectDirections[self.nextObjectID] = None
         self.previousCentroids[self.nextObjectID] = centroid
+        self.directionDisplayCounter[self.nextObjectID] = 0
         self.nextObjectID += 1
 
     def deregister(self, objectID):
@@ -30,6 +33,9 @@ class CentroidTracker:
         del self.disappeared[objectID]
         del self.objectDirections[objectID]
         del self.previousCentroids[objectID]
+        del self.directionDisplayCounter[objectID]
+        if objectID in self.printedDirections:
+            self.printedDirections.remove(objectID)
 
     def update(self, rects):
         if len(rects) == 0:
@@ -37,7 +43,7 @@ class CentroidTracker:
                 self.disappeared[objectID] += 1
                 if self.disappeared[objectID] > self.maxDisappeared:
                     self.deregister(objectID)
-            return self.objects, self.objectDirections
+            return self.objects, self.objectDirections, self.directionDisplayCounter
 
         inputCentroids = np.zeros((len(rects), 2), dtype="int")
         for (i, (startX, startY, endX, endY)) in enumerate(rects):
@@ -72,9 +78,16 @@ class CentroidTracker:
                 self.previousCentroids[objectID] = currentCentroid
 
                 if previousCentroid[1] >= exit_line and currentCentroid[1] < exit_line:
-                    self.objectDirections[objectID] = "Sale"
+                    self.objectDirections[objectID] = "Exit"
+                    if objectID not in self.printedDirections:
+                        print(f"ID {objectID} Exit")
+                        self.printedDirections.add(objectID)
+                    self.deregister(objectID)
                 elif previousCentroid[1] <= entry_line and currentCentroid[1] > entry_line:
-                    self.objectDirections[objectID] = "Entra"
+                    self.objectDirections[objectID] = "Entry"
+                    if objectID not in self.printedDirections:
+                        print(f"ID {objectID} Entry")
+                        self.printedDirections.add(objectID)
 
                 usedRows.add(row)
                 usedCols.add(col)
@@ -91,7 +104,7 @@ class CentroidTracker:
             for col in unusedCols:
                 self.register(inputCentroids[col])
 
-        return self.objects, self.objectDirections
+        return self.objects, self.objectDirections, self.directionDisplayCounter
 
 
 # Load YOLO
@@ -103,9 +116,9 @@ with open("coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 
 # Start video capture
-# el subtype=0 es para la camara principal 1 para la secundaria
 cap = cv2.VideoCapture(
-    "rtsp://admin:panamet0@192.168.0.208:554/cam/realmonitor?channel=1&subtype=1&unicast=true&proto=Onvif")
+    "rtsp://admin:panamet0@192.168.0.84:554/Streaming/Channels/102q")
+cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # Increase buffer size
 
 # Print frame shape and frame rate
 if cap.isOpened():
@@ -115,56 +128,34 @@ if cap.isOpened():
         fps = cap.get(cv2.CAP_PROP_FPS)
         print(f"Frame rate: {fps}")
 
-        # Save the first frame as a PNG file
-        print("Saving first frame as first_frame.png")
-        cv2.imwrite("first_frame.png", frame)
-
 # Initialize centroid tracker
 ct = CentroidTracker(maxDisappeared=40)
 (H, W) = (None, None)
 
 # Define entry and exit zones
-entry_line = 150  # Blue line
-exit_line = 300  # Red line
+entry_line = int(60 / 4)  # Blue line
+exit_line = int(70 / 4)  # Red line
 
 # Define the no-zone mask as a polygon
-no_zone = np.array([[180, 480], [580, 0], [704, 0], [704, 480], [180, 480]])
-
-# Initialize video recording parameters
-fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # For MP4 format
-recording_duration = 3  # seconds
-buffer_size = int(fps * recording_duration)
-frame_buffer = deque(maxlen=buffer_size)
-
-# Create the events directory if it doesn't exist
-os.makedirs("./events", exist_ok=True)
-
-# Function to save video event
-
-
-def save_event(event_type, frame_buffer, timestamp):
-    filename = f'./events/{event_type}_{timestamp}.mp4'
-    out = cv2.VideoWriter(filename, fourcc, fps, (W, H))
-    for frame in frame_buffer:
-        out.write(frame)
-    out.release()
-
-
-# Flag to avoid saving multiple events simultaneously
-is_saving_event = False
-current_event = None
+no_zone = np.array([[int(0 / 4), int(174 / 4)], [int(203 / 4), int(275 / 4)], [int(398 / 4), int(37 / 4)],
+                    [int(365 / 4), int(22 / 4)], [int(239 / 4), int(14 / 4)], [int(0 / 4), int(72 / 4)], [int(0 / 4), int(174 / 4)]])
 
 # Start processing the video
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
-        break
+        print("Failed to capture frame, retrying...")
+        cap.release()
+        cap = cv2.VideoCapture(
+            "rtsp://admin:panamet0@192.168.0.84:554/Streaming/Channels/102q")
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # Increase buffer size
+        continue
+
+    # Resize frame to ¼ of the original resolution
+    frame = cv2.resize(frame, (160, 90))
 
     if W is None or H is None:
         (H, W) = frame.shape[:2]
-
-    # Add the current frame to the buffer
-    frame_buffer.append(frame.copy())
 
     # Object detection
     blob = cv2.dnn.blobFromImage(
@@ -181,7 +172,6 @@ while cap.isOpened():
             scores = detection[5:]
             class_id = np.argmax(scores)
             confidence = scores[class_id]
-            # Car detection
             if confidence > 0.5 and class_id == classes.index("car"):
                 center_x = int(detection[0] * W)
                 center_y = int(detection[1] * H)
@@ -190,9 +180,8 @@ while cap.isOpened():
                 x = int(center_x - w / 2)
                 y = int(center_y - h / 2)
 
-                # Check if the center is within the no-zone mask
-                if cv2.pointPolygonTest(no_zone, (center_x, center_y), False) >= 0:
-                    continue  # Ignore this detection if it is within the no-zone
+                if cv2.pointPolygonTest(no_zone, (center_x, center_y), False) < 0:
+                    continue
 
                 boxes.append((x, y, x + w, y + h))
                 confidences.append(float(confidence))
@@ -206,26 +195,11 @@ while cap.isOpened():
     for i in indexes:
         rects.append(boxes[i])
 
-    objects, directions = ct.update(rects)
+    objects, directions, display_counters = ct.update(rects)
 
     for (objectID, centroid) in objects.items():
-        text = f"ID {objectID}"
-        print(f"{text} Centroid: {centroid}")
-
-        # Display the direction and save video events
         direction = directions.get(objectID, None)
-        if direction in ["Sale", "Entra"] and not is_saving_event:
-            if direction != current_event:
-                current_event = direction
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                is_saving_event = True
-                save_event(direction, frame_buffer, timestamp)
-                is_saving_event = False
-
-            print(f"ID {objectID} {direction}")
-
-    # Draw the lines on the frame (for logging purposes, not visualization)
-    print(f"Frame processed with {len(objects)} objects detected")
+        if display_counters[objectID] > 0:
+            display_counters[objectID] -= 1
 
 cap.release()
-print("Video processing completed")
