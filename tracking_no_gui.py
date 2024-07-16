@@ -116,8 +116,8 @@ with open("coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 
 # Start video capture
-cap = cv2.VideoCapture(
-    "rtsp://admin:panamet0@192.168.0.84:554/Streaming/Channels/102q")
+# cap = cv2.VideoCapture("rtsp://admin:panamet0@192.168.0.84:554/Streaming/Channels/102q")
+cap = cv2.VideoCapture("./prueba2.mp4")
 cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # Increase buffer size
 
 # Print frame shape and frame rate
@@ -147,7 +147,7 @@ while cap.isOpened():
         print("Failed to capture frame, retrying...")
         cap.release()
         cap = cv2.VideoCapture(
-            "rtsp://admin:panamet0@192.168.0.84:554/Streaming/Channels/102q")
+            "rtsp://admin:panamet0@192.168.0.84:554/Streaming/Channels/102")
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # Increase buffer size
         print("Reconnected to the camera")
         continue
