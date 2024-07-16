@@ -149,6 +149,7 @@ while cap.isOpened():
         cap = cv2.VideoCapture(
             "rtsp://admin:panamet0@192.168.0.84:554/Streaming/Channels/102q")
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # Increase buffer size
+        print("Reconnected to the camera")
         continue
 
     # Resize frame to ¼ of the original resolution
