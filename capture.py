@@ -12,7 +12,7 @@ with open("coco.names", "r") as f:
 
 # Start video capture
 cap = cv2.VideoCapture(
-    "rtsp://admin:panamet0@192.168.0.84:554/Streaming/Channels/102")
+    "rtsp://admin:panamet0@192.168.0.84:554/Streaming/Channels/101")
 
 # Check if the video capture is opened
 if not cap.isOpened():
